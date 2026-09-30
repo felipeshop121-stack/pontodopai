@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ponto Inteligente</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121214;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+        }
+       .app-container {
+            width: 100vw;
+            max-width: 410px;
+            height: 100vh;
+            background-color: #1e1e24;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+       .app-header {
+            background-color: #121214;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #2a2a35;
+        }
+       .app-header h2 {
+            margin: 0;
+            color: #3a86ff;
+            font-size: 20px;
+            letter-spacing: 1px;
+        }
+       .app-content {
+            flex: 1;
+            padding: 25px;
+            overflow-y: auto;
+        }
+       .status-box {
+            background-color: #2a2a35;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 40px;
+            margin-bottom: 40px;
+            text-align: center;
+            font-size: 16px;
+            color: #9ed8db;
+            border: 1px solid #3d3d4e;
+        }
+       .btn-ponto {
+            width: 100%;
+            height: 65px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+       .btn-iniciar { background-color: #3a86ff; color: white; }
+       .btn-finalizar { background-color: #e74c3c; color: white; }
+       .item-registro {
+            background-color: #2a2a35;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            border-left: 5px solid #3a86ff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+       .reg-info { flex: 1; }
+       .reg-data {
+            font-weight: bold;
+            color: #3a86ff;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+       .reg-hospital {
+            font-size: 14px;
+            color: #f1c40f;
+            margin-bottom: 5px;
+        }
+       .reg-horas {
+            display: flex;
+            justify-content: space-between;
+            font-size: 15px;
+            padding-right: 10px;
+        }
+       .btn-apagar {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+       .btn-apagar:active { background-color: rgba(231, 76, 60, 0.2); }
+       .app-tabs {
+            height: 70px;
+            background-color: #121214;
+            display: flex;
+            border-top: 1px solid #2a2a35;
+        }
+       .tab-button {
+            flex: 1;
+            background: none;
+            border: none;
+            color: #7a7a8c;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+       .tab-button.active { color: #3a86ff; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="app-header">
+            <h2 id="app-titulo">BATER PONTO</h2>
+        </div>
+        <div class="app-content">
+            <div id="tela-ponto">
+                <div class="status-box" id="status">
+                    Pronto para registrar o ponto.<br>Clique abaixo para iniciar.
+                </div>
+                <button id="btn-acao" class="btn-iniciar" onclick="processarPonto()">INICIAR JORNADA 🟩</button>
+            </div>
+            <div id="tela-registros" style="display: none;">
+                <div id="lista-registros"></div>
+            </div>
+        </div>
+        <div class="app-tabs">
+            <button class="tab-button active" id="tab-ponto" onclick="mudarTela('ponto')">
+                <span>⏱️</span>
+                <span>Ponto</span>
+            </button>
+            <button class="tab-button" id="tab-registros" onclick="mudarTela('registros')">
+                <span>📅</span>
+                <span>Registros</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let estadoAtual = "entrada";
+        let horaEntradaTemporaria = "";
+        const IP_PC = "192.168.15.2:8000"; // IP fixo do seu computador
+
+        window.onload = function() {
+            restaurarEstadoDoBotao();
+            mostrarRegistros();
+            sincronizarComPC(); // Tenta enviar dados pendentes para o Excel ao abrir
+        };
+
+        function mudarTela(nomeTela) {
+            const telaPonto = document.getElementById("tela-ponto");
+            const telaRegistros = document.getElementById("tela-registros");
+            const tabPonto = document.getElementById("tab-ponto");
+            const tabRegistros = document.getElementById("tab-registros");
+            const titulo = document.getElementById("app-titulo");
+
+            if (nomeTela === "ponto") {
+                telaPonto.style.display = "block";
+                telaRegistros.style.display = "none";
+                tabPonto.classList.add("active");
+                tabRegistros.classList.remove("active");
+                titulo.innerText = "BATER PONTO";
+            } else {
+                telaPonto.style.display = "none";
+                telaRegistros.style.display = "block";
+                tabPonto.classList.remove("active");
+                tabRegistros.classList.add("active");
+                titulo.innerText = "HISTÓRICO DE REGISTROS";
+                mostrarRegistros();
+            }
+        }
+
+        function restaurarEstadoDoBotao() {
+            let salvo = localStorage.getItem("pontoEmAndamento");
+            if (salvo) {
+                horaEntradaTemporaria = salvo;
+                estadoAtual = "saida";
+
+                let statusBox = document.getElementById("status");
+                let botao = document.getElementById("btn-acao");
+
+                statusBox.innerHTML = `Turno em andamento...<br><br><b>Entrada:</b> ${horaEntradaTemporaria} 🟩`;
+                statusBox.style.color = "#2ec4b6";
+                botao.innerHTML = "FINALIZAR JORNADA 🟥";
+                botao.className = "btn-ponto btn-finalizar";
+            }
+        }
+
+        function mostrarRegistros() {
+            let historico = JSON.parse(localStorage.getItem("historicoPontoAbas")) || [];
+            let listaDiv = document.getElementById("lista-registros");
+
+            if (historico.length === 0) {
+                listaDiv.innerHTML = "<p style='text-align:center; color:#7a7a8c; margin-top:40px;'>Nenhum registro encontrado.</p>";
+                return;
+            }
+
+            listaDiv.innerHTML = "";
+
+            historico.forEach(function(item, index) {
+                let div = document.createElement("div");
+                div.className = "item-registro";
+                let nuvemStatus = item.sincronizado? "☁️ (Salvo no PC)" : "📲 (Apenas no Celular)";
+                div.innerHTML = `
+                    <div class="reg-info">
+                        <div class="reg-data">📅 ${item.dataExibicao} <span style="font-size:11px; color:#aaa;">${nuvemStatus}</span></div>
+                        <div class="reg-hospital">🏥 Hospital: <b>${item.hospital}</b></div>
+                        <div class="reg-horas">
+                            <span>🟩 Ent: <b>${item.entrada}</b></span>
+                            <span>🟥 Saí: <b>${item.saida}</b></span>
+                        </div>
+                    </div>
+                    <button class="btn-apagar" onclick="apagarRegistro(${index})">🗑️</button>
+                `;
+                listaDiv.appendChild(div);
+            });
+        }
+
+        function processarPonto() {
+            let agora = new Date();
+            let hora = agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            let data = agora.toLocaleDateString('pt-BR');
+
+            let statusBox = document.getElementById("status");
+            let botao = document.getElementById("btn-acao");
+
+            if (estadoAtual === "entrada") {
+                horaEntradaTemporaria = hora;
+                statusBox.innerHTML = `Turno em andamento...<br><br><b>Entrada:</b> ${horaEntradaTemporaria} 🟩`;
+                statusBox.style.color = "#2ec4b6";
+
+                botao.innerHTML = "FINALIZAR JORNADA 🟥";
+                botao.className = "btn-ponto btn-finalizar";
+                estadoAtual = "saida";
+
+                localStorage.setItem("pontoEmAndamento", horaEntradaTemporaria);
+            } else {
+                let nomeHospital = prompt("Em qual hospital você trabalhou hoje?");
+                if (nomeHospital === null || nomeHospital.trim() === "") {
+                    nomeHospital = "Não informado";
+                }
+
+                statusBox.innerHTML = `Turno Concluído!<br><br><b>Entrada:</b> ${horaEntradaTemporaria}<br><b>Saída:</b> ${hora} 🟥`;
+                statusBox.style.color = "#ff3366";
+
+                botao.innerHTML = "INICIAR NOVA JORNADA 🟩";
+                botao.className = "btn-ponto btn-iniciar";
+                estadoAtual = "entrada";
+
+                localStorage.removeItem("pontoEmAndamento");
+
+                let chaveIdentificadora = `${data} às ${agora.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
+
+                let novoRegistro = {
+                    dataExibicao: chaveIdentificadora,
+                    hospital: nomeHospital,
+                    entrada: horaEntradaTemporaria,
+                    saida: hora,
+                    sincronizado: false
+                };
+
+                let historico = JSON.parse(localStorage.getItem("historicoPontoAbas")) || [];
+                historico.unshift(novoRegistro);
+                localStorage.setItem("historicoPontoAbas", JSON.stringify(historico));
+                mostrarRegistros();
+                sincronizarComPC(); // Tenta disparar para o PC na hora
+            }
+        }
+
+        function sincronizarComPC() {
+            let historico = JSON.parse(localStorage.getItem("historicoPontoAbas")) || [];
+            historico.forEach(function(item, index) {
+                if (!item.sincronizado) {
+                    fetch(`http://${IP_PC}/salvar-excel`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(item)
+                    })
+                   .then(res => res.json())
+                   .then(dados => {
+                        if (dados.status === "sucesso") {
+                            historico[index].sincronizado = true;
+                            localStorage.setItem("historicoPontoAbas", JSON.stringify(historico));
+                            mostrarRegistros();
+                        }
+                    })
+                   .catch(err => console.log("Computador offline. Sincronização agendada para quando conectar no Wi-Fi."));
+                }
+            });
+        }
+
+        function apagarRegistro(index) {
+            if (confirm("Deseja mesmo apagar este registro de ponto?")) {
+                let historico = JSON.parse(localStorage.getItem("historicoPontoAbas")) || [];
+                historico.splice(index, 1);
+                localStorage.setItem("historicoPontoAbas", JSON.stringify(historico));
+                mostrarRegistros();
+            }
+        }
+    </script>
+</body>
+</html>
